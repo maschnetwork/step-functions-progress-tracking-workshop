@@ -21,4 +21,4 @@ npm install -g aws-cdk --force
 npm install -g artillery
 
 ## Resize disk
-/home/ec2-user/environment/aws-lambda-java-workshop/resize-cloud9.sh 30
+/home/ec2-user/environment/step-functions-progress-tracking-workshop/resize-cloud9.sh 30
