@@ -5,7 +5,7 @@ Description: >
 
 Globals:
   Function:
-    Runtime: python3.9
+    Runtime: nodejs14.x
     MemorySize: 128
     Timeout: 15
 
@@ -57,11 +57,27 @@ Resources:
       Description: Disconnect Integration
       IntegrationType: AWS_PROXY
       IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnDisconnectFunction.Arn}/invocations
+  OnMsgRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketAPI
+      RouteKey: onMsg
+      AuthorizationType: NONE
+      OperationName: OnMsgRoute
+      Target: !Join [ '/', ['integrations', !Ref OnMsgInteg]]
+  OnMsgInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketAPI
+      Description: OnMsg Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnMsgFunction.Arn}/invocations
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
       - ConnectRoute
       - DisconnectRoute
+      - OnMsgRoute
     Properties:
       ApiId: !Ref WebSocketAPI
   Stage:
@@ -92,8 +108,8 @@ Resources:
   OnConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: handlers/websocketHandlers/onConnect/
-      Handler: app.handler
+      CodeUri: lambda_functions/websocket/onConnect/
+      Handler: func.handler
       Environment:
         Variables:
           TABLE_NAME: !Ref ConnectionsTable
@@ -111,8 +127,8 @@ Resources:
   OnDisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: handlers/websocketHandlers/onDisconnect/
-      Handler: app.handler
+      CodeUri: lambda_functions/websocket/onDisconnect/
+      Handler: func.handler
       Environment:
         Variables:
           TABLE_NAME: !Ref ConnectionsTable
@@ -127,11 +143,11 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref OnDisconnectFunction
       Principal: apigateway.amazonaws.com
-  ReportProgressFunction:
+  OnMsgFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: handlers/websocketHandlers/reportProgress/
-      Handler: app.handler
+      CodeUri: lambda_functions/websocket/onMsg/
+      Handler: func.handler
       Environment:
         Variables:
           TABLE_NAME: !Ref ConnectionsTable
@@ -145,6 +161,15 @@ Resources:
                 - 'execute-api:ManageConnections'
               Resource:
                 - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketAPI}/*'
+  OnMsgPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketAPI
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OnMsgFunction
+      Principal: apigateway.amazonaws.com
+
 
 Outputs:
   WebSocketURL:
